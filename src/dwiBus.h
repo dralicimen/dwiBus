@@ -6,33 +6,37 @@
 
 // Paket yapısı: dwiPacket
 struct dwiPacket {
-    uint8_t sync[2] = {0xAA, 0x55};  // Senkronizasyon baytları
-    uint16_t receiver;  // Varış Adresi
-    uint16_t sender;    // Gönderen Adresi
-    uint16_t length;    // Veri Uzunluğu
-    char data[50];      // Veri (Maks. 50 byte)
-    uint8_t crc;        // CRC-8
-    uint8_t end[2] = {0x0D, 0x0A};  // Bitiş baytları
+    uint8_t sync[2] = {0xAA, 0x55};
+    uint8_t receiver;
+    uint8_t sender;
+    uint8_t packetNum;
+    uint8_t totalPackets;
+    uint8_t length;
+    char data[50];  // Maksimum 50 byte
+    uint8_t crc;
+    uint8_t end[2] = {0x0D, 0x0A};
 };
 
 // Haberleşme sınıfı: dwiBus
 class dwiBus {
 public:
-    dwiBus(int rxPin, int txPin, int busPin, uint16_t deviceAddress);  // Kurucu
+    dwiBus(int rxPin, int txPin, int busPin, uint8_t deviceAddress);
 
-    void begin(long baudRate);  // Haberleşmeyi başlat
-    void onPacketReceived(void (*callback)(const dwiPacket&));  // Callback kaydet
+    void begin(long baudRate);
+    void onPacketReceived(void (*callback)(const dwiPacket&));
 
-    bool sendPacket(uint16_t receiver, const char* data, uint16_t length, unsigned long timeout = 1000);  // Paket gönder
-    void handleReceive();  // Gelen paketleri kontrol et
+    bool sendPacket(uint8_t receiver, const char* data, uint8_t length, unsigned long timeout = 1000);
+    bool sendLargePacket(uint8_t receiver, const char* data, uint16_t totalLength, unsigned long timeout = 1000);
+
+    void handleReceive();
 
 private:
-    int busPin;  // Hat durumu için pin
-    uint16_t address;  // Cihaz adresi
-    SoftwareSerial serial;  // SoftwareSerial nesnesi
-    void (*packetCallback)(const dwiPacket&);  // Kullanıcı callback'i
+    int busPin;
+    uint8_t address;
+    SoftwareSerial serial;
+    void (*packetCallback)(const dwiPacket&);
 
-    bool waitForBus(unsigned long timeout);  // Hat müsait olana kadar bekle
+    bool waitForBus(unsigned long timeout);
     uint8_t calculateCRC(const uint8_t* data, size_t length);
     bool checkCRC(const dwiPacket& packet);
 };

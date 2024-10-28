@@ -103,13 +103,13 @@ This example allows setting the device's address via the **serial monitor** at r
 
 ---
 
-### Example 3: Client with Address 0x01 (`Client0x01.ino`)
+### Example 3: Client with Address 0x01 (`Clien1.ino`)
 
 A simple client with **address 0x01** that sends and acknowledges messages.
 
 ---
 
-### Example 4: Client with Address 0x02 (`Client0x02.ino`)
+### Example 4: Client with Address 0x02 (`Client2.ino`)
 
 A simple client with **address 0x02** that sends and acknowledges messages.
 

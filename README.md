@@ -26,7 +26,7 @@ This example demonstrates a simple chat system between two devices using the `dw
 
 // dwiBus object: RX = 11, TX = 12, control pin = 13, device address = 0x01 or 0x02
 #define DEVICE_ADDRESS 0x01  // Change to 0x02 for the other device
-#define TARGET_ADDRESS 0x02  // Target device address (reverse for other device)
+#define TARGET_ADDRESS 0x02  // Target device address (reverse for the other device)
 
 dwiBus bus(11, 12, 13, DEVICE_ADDRESS);  // Initialize dwiBus
 
@@ -68,7 +68,7 @@ void loop() {
 
 ### **Example 2: Dynamic Address Chat (`DynamicSerialChat.ino`)**
 
-In this example, the device address is set at runtime via the serial monitor. Users can specify the recipient's address and the message interactively.
+This example allows the device address to be set at runtime via the serial monitor. Users can specify the recipient's address and message interactively.
 
 ```cpp
 #include <dwiBus.h>
@@ -131,6 +131,74 @@ void loop() {
 
 ---
 
+### **Example 3: Client with Address 0x01 (`Client0x01.ino`)**
+
+This example demonstrates a client with **address 0x01** that sends and receives messages.
+
+```cpp
+#include <dwiBus.h>
+
+dwiBus bus(11, 12, 13, 0x01);  // Initialize dwiBus for device 0x01
+
+void onPacketReceived(const dwiPacket& packet) {
+    Serial.print("Received from 0x");
+    Serial.print(packet.sender, HEX);
+    Serial.print(": ");
+    Serial.println(packet.data);
+
+    bus.sendPacket(packet.sender, "ACK from 0x01", 14);  // Send acknowledgment
+}
+
+void setup() {
+    Serial.begin(9600);
+    bus.begin(9600);
+    bus.onPacketReceived(onPacketReceived);
+
+    Serial.println("Client 0x01 is ready.");
+}
+
+void loop() {
+    bus.handleReceive();  // Check for incoming messages
+    delay(1000);  // Wait 1 second
+}
+```
+
+---
+
+### **Example 4: Client with Address 0x02 (`Client0x02.ino`)**
+
+This example demonstrates a client with **address 0x02** that sends and receives messages.
+
+```cpp
+#include <dwiBus.h>
+
+dwiBus bus(11, 12, 13, 0x02);  // Initialize dwiBus for device 0x02
+
+void onPacketReceived(const dwiPacket& packet) {
+    Serial.print("Received from 0x");
+    Serial.print(packet.sender, HEX);
+    Serial.print(": ");
+    Serial.println(packet.data);
+
+    bus.sendPacket(packet.sender, "ACK from 0x02", 14);  // Send acknowledgment
+}
+
+void setup() {
+    Serial.begin(9600);
+    bus.begin(9600);
+    bus.onPacketReceived(onPacketReceived);
+
+    Serial.println("Client 0x02 is ready.");
+}
+
+void loop() {
+    bus.handleReceive();  // Check for incoming messages
+    delay(1000);  // Wait 1 second
+}
+```
+
+---
+
 ## License
 
 This project is licensed under the **GNU GENERAL PUBLIC LICENSE Version 3 (GPL v3)**. See the [LICENSE.txt](LICENSE.txt) file for details.
@@ -156,6 +224,10 @@ dwiBus/
 │   │   └── SerialChat.ino
 │   ├── DynamicSerialChat/
 │   │   └── DynamicSerialChat.ino
+│   ├── Client0x01/
+│   │   └── Client0x01.ino
+│   ├── Client0x02/
+│   │   └── Client0x02.ino
 ├── library.json
 ├── library.properties
 ├── LICENSE.txt

@@ -1,0 +1,14 @@
+{
+    "name": "dwiBus",
+    "version": "1.0.0",
+    "author": "Ali Çimen <cimenwd@gmail.com>",
+    "maintainer": "Ali Çimen <cimenwd@gmail.com>",
+    "license": "GPL-3.0",
+    "description": "dwiBus library for UART communication between multiple devices with CRC-based error control.",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/dralicimen/dwiBus"
+    },
+    "frameworks": "arduino",
+    "platforms": "*"
+}

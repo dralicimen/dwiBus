@@ -56,19 +56,26 @@ bool dwiBus::waitForBus(unsigned long timeout) {
 
 // Paket gönderme fonksiyonu
 bool dwiBus::sendPacket(uint16_t receiver, const char* data, uint16_t length, unsigned long timeout) {
-    if (!waitForBus(timeout)) {
-        return false;  // Hat meşgulse gönderim başarısız
+    if (length > 50) {  // Maksimum veri boyutu kontrolü
+        Serial.println("Hata: Veri uzunluğu 50 byte'ı geçemez!");
+        return false;
+    }
+
+    if (!waitForBus(timeout)) {  // Hat kontrolü
+        return false;
     }
 
     dwiPacket packet;
     packet.receiver = receiver;
     packet.sender = address;
     packet.length = length;
-    memcpy(packet.data, data, length);
+    memset(packet.data, 0, sizeof(packet.data));  // Eski veriyi temizle
+    memcpy(packet.data, data, length);  // Yeni veriyi kopyala
     packet.crc = calculateCRC((uint8_t*)&packet, sizeof(packet) - 3);
 
     serial.write((uint8_t*)&packet, sizeof(packet));  // Paketi gönder
-    digitalWrite(busPin, LOW);  // Hat müsait yap
+    serial.flush();  // Tüm verilerin gönderildiğinden emin ol
+    digitalWrite(busPin, LOW);  // Hat boşalt
     return true;
 }
 
@@ -79,10 +86,12 @@ void dwiBus::handleReceive() {
         serial.readBytes((uint8_t*)&packet, sizeof(dwiPacket));
 
         // Alıcı adresi bu cihazın adresi mi?
-        if (packet.receiver == address && checkCRC(packet)) {
+        if (packet.receiver == address ) {
             if (packetCallback != nullptr) {
                 packetCallback(packet);  // Callback fonksiyonunu çağır
             }
+        } else {
+            Serial.println("Geçersiz paket veya CRC hatası.");
         }
     }
 }

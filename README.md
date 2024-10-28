@@ -1,7 +1,9 @@
 
 # dwiBus Library
 
-The `dwiBus` library is designed for UART communication between multiple devices. It supports both **SoftwareSerial** and **HardwareSerial** interfaces and provides **CRC-based error control**. It is compatible with both Arduino and ESP32 platforms.
+The `dwiBus` library provides a simple way to implement UART communication between multiple devices using either **SoftwareSerial** or **HardwareSerial** interfaces. It offers **CRC-based error control** to ensure data integrity. The library is compatible with both **Arduino** and **ESP32** platforms, supporting multiple devices on a shared line.
+
+---
 
 ## Installation
 
@@ -11,26 +13,58 @@ The `dwiBus` library is designed for UART communication between multiple devices
 2. Open Arduino IDE and go to **Sketch > Include Library > Add .ZIP Library**.
 3. Select the downloaded ZIP file to install the library.
 
-## Usage
+---
 
-Here are examples demonstrating how to use the dwiBus library:
+## Hardware Configuration
+
+For **multi-device UART communication** using a shared line, follow this configuration:
+
+### 3-Device UART Configuration (TX with 1K Resistors)
+
+```
+Device 1 (Arduino Uno)      Device 2 (Arduino Nano)      Device 3 (Arduino Mega)
+   (TX = 12)                  (TX = 12)                    (TX = 18)
+      │                          │                            │
+    1KΩ                        1KΩ                          1KΩ
+      │                          │                            │
+      └───┬──────────────────────┴────────────┬──────────────┘
+          │                                   │
+     Shared RX Line (RX = 11, 11, 19 for Uno, Nano, Mega)
+          │
+        RX 11 (Uno)
+        RX 11 (Nano)
+        RX 19 (Mega)
+```
 
 ---
 
-### **Example 1: Basic Serial Chat (`SerialChat.ino`)**
+### Wiring Explanation
 
-This example demonstrates a simple chat system between two devices using the `dwiBus` protocol. Each device can send and receive messages interactively.
+1. **TX Lines with 1K Resistors**:
+   - Each device's TX line is connected to the shared RX line **through a 1K ohm resistor** to prevent signal conflicts.
+
+2. **Shared RX Line**:
+   - All devices' RX pins are connected to the **shared RX line**, allowing them to receive data on the same bus.
+
+3. **No Ground Loop Issues**:
+   - The devices communicate over the shared RX line, without requiring separate ground connections for the UART interface.
+
+---
+
+## Usage
+
+### Example 1: Basic Serial Chat (`SerialChat.ino`)
+
+This example demonstrates a basic chat system where devices send and receive messages interactively.
 
 ```cpp
 #include <dwiBus.h>
 
-// dwiBus object: RX = 11, TX = 12, control pin = 13, device address = 0x01 or 0x02
-#define DEVICE_ADDRESS 0x01  // Change to 0x02 for the other device
-#define TARGET_ADDRESS 0x02  // Target device address (reverse for the other device)
+#define DEVICE_ADDRESS 0x01  // Set to 0x02 for the other device
+#define TARGET_ADDRESS 0x02  // Reverse for the other device
 
 dwiBus bus(11, 12, 13, DEVICE_ADDRESS);  // Initialize dwiBus
 
-// Callback function to handle incoming messages
 void onPacketReceived(const dwiPacket& packet) {
     Serial.print("Message from 0x");
     Serial.print(packet.sender, HEX);
@@ -39,26 +73,23 @@ void onPacketReceived(const dwiPacket& packet) {
 }
 
 void setup() {
-    Serial.begin(9600);  // Start serial communication for debugging
-    bus.begin(9600);  // Initialize dwiBus communication
-    bus.onPacketReceived(onPacketReceived);  // Register the callback function
+    Serial.begin(9600);
+    bus.begin(9600);
+    bus.onPacketReceived(onPacketReceived);
 
-    Serial.println("Serial Chat Started!");
-    Serial.println("Type a message and press Enter to send.");
+    Serial.println("Serial Chat Started! Type a message.");
 }
 
 void loop() {
-    bus.handleReceive();  // Check for incoming messages
+    bus.handleReceive();
 
     if (Serial.available() > 0) {
-        String message = Serial.readStringUntil('
-');
-        message.trim();  // Remove trailing spaces or newlines
-
+        String message = Serial.readStringUntil('\n');
+        message.trim();
         if (bus.sendPacket(TARGET_ADDRESS, message.c_str(), message.length())) {
             Serial.println("Message sent.");
         } else {
-            Serial.println("Failed to send message: Bus is busy.");
+            Serial.println("Failed to send: Bus is busy.");
         }
     }
 }
@@ -66,152 +97,25 @@ void loop() {
 
 ---
 
-### **Example 2: Dynamic Address Chat (`DynamicSerialChat.ino`)**
+### Example 2: Dynamic Address Chat (`DynamicSerialChat.ino`)
 
-This example allows the device address to be set at runtime via the serial monitor. Users can specify the recipient's address and message interactively.
-
-```cpp
-#include <dwiBus.h>
-
-#define RX_PIN 11
-#define TX_PIN 12
-#define BUS_PIN 13
-
-dwiBus* bus;  // Pointer to the dwiBus object
-uint16_t deviceAddress;  // Device address
-
-void onPacketReceived(const dwiPacket& packet) {
-    Serial.print("Message from 0x");
-    Serial.print(packet.sender, HEX);
-    Serial.print(": ");
-    Serial.println(packet.data);
-}
-
-void setup() {
-    Serial.begin(9600);
-    Serial.println("Enter your device address (1-255): ");
-
-    while (Serial.available() == 0) {}  // Wait for input
-    deviceAddress = Serial.parseInt();
-
-    if (deviceAddress < 1 || deviceAddress > 255) {
-        Serial.println("Invalid address! Using default address 1.");
-        deviceAddress = 1;
-    }
-
-    bus = new dwiBus(RX_PIN, TX_PIN, BUS_PIN, deviceAddress);
-    bus->begin(9600);
-    bus->onPacketReceived(onPacketReceived);
-
-    Serial.print("Device address set to: 0x");
-    Serial.println(deviceAddress, HEX);
-    Serial.println("You can now start chatting.");
-}
-
-void loop() {
-    Serial.println("Enter recipient's address (1-255): ");
-    while (Serial.available() == 0) {}
-    uint16_t recipientAddress = Serial.parseInt();
-
-    Serial.println("Enter your message: ");
-    while (Serial.available() == 0) {}
-    String message = Serial.readStringUntil('
-');
-    message.trim();
-
-    if (bus->sendPacket(recipientAddress, message.c_str(), message.length())) {
-        Serial.println("Message sent.");
-    } else {
-        Serial.println("Failed to send message: Bus is busy.");
-    }
-
-    bus->handleReceive();
-}
-```
+This example allows setting the device's address via the **serial monitor** at runtime.
 
 ---
 
-### **Example 3: Client with Address 0x01 (`Client0x01.ino`)**
+### Example 3: Client with Address 0x01 (`Client0x01.ino`)
 
-This example demonstrates a client with **address 0x01** that sends and receives messages.
-
-```cpp
-#include <dwiBus.h>
-
-dwiBus bus(11, 12, 13, 0x01);  // Initialize dwiBus for device 0x01
-
-void onPacketReceived(const dwiPacket& packet) {
-    Serial.print("Received from 0x");
-    Serial.print(packet.sender, HEX);
-    Serial.print(": ");
-    Serial.println(packet.data);
-
-    bus.sendPacket(packet.sender, "ACK from 0x01", 14);  // Send acknowledgment
-}
-
-void setup() {
-    Serial.begin(9600);
-    bus.begin(9600);
-    bus.onPacketReceived(onPacketReceived);
-
-    Serial.println("Client 0x01 is ready.");
-}
-
-void loop() {
-    bus.handleReceive();  // Check for incoming messages
-    delay(1000);  // Wait 1 second
-}
-```
+A simple client with **address 0x01** that sends and acknowledges messages.
 
 ---
 
-### **Example 4: Client with Address 0x02 (`Client0x02.ino`)**
+### Example 4: Client with Address 0x02 (`Client0x02.ino`)
 
-This example demonstrates a client with **address 0x02** that sends and receives messages.
-
-```cpp
-#include <dwiBus.h>
-
-dwiBus bus(11, 12, 13, 0x02);  // Initialize dwiBus for device 0x02
-
-void onPacketReceived(const dwiPacket& packet) {
-    Serial.print("Received from 0x");
-    Serial.print(packet.sender, HEX);
-    Serial.print(": ");
-    Serial.println(packet.data);
-
-    bus.sendPacket(packet.sender, "ACK from 0x02", 14);  // Send acknowledgment
-}
-
-void setup() {
-    Serial.begin(9600);
-    bus.begin(9600);
-    bus.onPacketReceived(onPacketReceived);
-
-    Serial.println("Client 0x02 is ready.");
-}
-
-void loop() {
-    bus.handleReceive();  // Check for incoming messages
-    delay(1000);  // Wait 1 second
-}
-```
+A simple client with **address 0x02** that sends and acknowledges messages.
 
 ---
 
-## License
-
-This project is licensed under the **GNU GENERAL PUBLIC LICENSE Version 3 (GPL v3)**. See the [LICENSE.txt](LICENSE.txt) file for details.
-
-## Author
-
-**Ali Çimen**  
-Email: [cimenwd@gmail.com](mailto:cimenwd@gmail.com)  
-GitHub: [https://github.com/dralicimen](https://github.com/dralicimen)
-
----
-
-## Directory Structure
+## Library Directory Structure
 
 ```
 dwiBus/
@@ -236,8 +140,34 @@ dwiBus/
 
 ---
 
+## CRC Error Control
+
+The library uses **CRC-8** to ensure data integrity. Each packet contains:
+- **2 Bytes Sync**: Start of the packet.
+- **2 Bytes Receiver Address**: The intended recipient.
+- **2 Bytes Sender Address**: The sender's address.
+- **2 Bytes Length**: Length of the data.
+- **Data (up to 50 bytes)**: The actual message content.
+- **1 Byte CRC**: Error checking byte.
+- **2 Bytes End Marker**: Packet end marker (`\r\n`).
+
+---
+
+## License
+
+This project is licensed under the **GNU GENERAL PUBLIC LICENSE Version 3 (GPL v3)**.  
+See the [LICENSE.txt](LICENSE.txt) file for details.
+
+---
+
+## Author
+
+**Ali Çimen**  
+Email: [cimenwd@gmail.com](mailto:cimenwd@gmail.com)  
+GitHub: [https://github.com/dralicimen](https://github.com/dralicimen)
+
+---
+
 ## Summary
 
-The **dwiBus library** simplifies UART-based communication between multiple devices, providing real-time packet handling with CRC-based error control. With the provided examples, you can build chat systems or extend communication to multiple devices in a network.
-
-The library is now ready to use with **Arduino IDE** and **PlatformIO** environments.
+The **dwiBus library** simplifies UART communication between multiple devices with **error control** using CRC. The provided examples demonstrate how to build chat systems or extend communication between multiple devices. With **TX lines managed by resistors**, the library ensures smooth communication on a shared line.

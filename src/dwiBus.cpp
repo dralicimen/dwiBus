@@ -1,49 +1,45 @@
 #include "dwiBus.h"
 
-// Kurucu: SoftwareSerial nesnesi ve cihaz bilgilerini ayarlar
-dwiBus::dwiBus(int rxPin, int txPin, int busPin, uint16_t deviceAddress)
+// Kurucu
+dwiBus::dwiBus(int rxPin, int txPin, int busPin, uint8_t deviceAddress)
     : serial(rxPin, txPin), packetCallback(nullptr) {
     this->busPin = busPin;
     this->address = deviceAddress;
     pinMode(busPin, OUTPUT);
-    digitalWrite(busPin, LOW);  // Hat başlangıçta müsait
+    digitalWrite(busPin, LOW);
 }
 
 // Haberleşmeyi başlatır
 void dwiBus::begin(long baudRate) {
-    serial.begin(baudRate);  // SoftwareSerial başlat
+    serial.begin(baudRate);
 }
 
-// Kullanıcı callback fonksiyonunu kaydeder
+// Callback fonksiyonunu kaydeder
 void dwiBus::onPacketReceived(void (*callback)(const dwiPacket&)) {
     packetCallback = callback;
 }
 
-// CRC hesaplama fonksiyonu
+
+// CRC kontrolü
 uint8_t dwiBus::calculateCRC(const uint8_t* data, size_t length) {
     uint8_t crc = 0x00;
     for (size_t i = 0; i < length; ++i) {
-        crc ^= data[i];  // XOR işlemi
+        crc ^= data[i];
         for (uint8_t j = 0; j < 8; ++j) {
-            if (crc & 0x80) {
-                crc = (crc << 1) ^ 0x07;  // Polinom: x^8 + x^2 + x + 1 (0x07)
-            } else {
-                crc <<= 1;
-            }
+            crc = (crc & 0x80) ? (crc << 1) ^ 0x07 : crc << 1;
         }
     }
     return crc;
 }
-
-
-// CRC kontrolü
 bool dwiBus::checkCRC(const dwiPacket& packet) {
-    uint8_t calculatedCRC = calculateCRC((uint8_t*)&packet, sizeof(packet) - 3);  // Son 3 bayt hariç
+    size_t lengthToCheck = sizeof(packet) - sizeof(packet.crc) - sizeof(packet.end);
+    uint8_t calculatedCRC = calculateCRC((uint8_t*)&packet, lengthToCheck);
     return calculatedCRC == packet.crc;
 }
 
 
-// Hat müsait olana kadar bekler
+
+// Hat bekleme
 bool dwiBus::waitForBus(unsigned long timeout) {
     unsigned long startTime = millis();
     while (digitalRead(busPin) == HIGH) {
@@ -52,50 +48,78 @@ bool dwiBus::waitForBus(unsigned long timeout) {
             return false;
         }
     }
-    digitalWrite(busPin, HIGH);  // Hat meşgul yap
+    digitalWrite(busPin, HIGH);
     return true;
 }
 
-// Paket gönderme fonksiyonu
-bool dwiBus::sendPacket(uint16_t receiver, const char* data, uint16_t length, unsigned long timeout) {
-    if (length > 50) {
-        Serial.println("Hata: Veri uzunluğu 50 byte'ı geçemez.");
-        return false;
+// Küçük paket gönderme
+bool dwiBus::sendPacket(uint8_t receiver, const char* data, uint8_t length, unsigned long timeout) {
+    return sendLargePacket(receiver, data, length, timeout);
+}
+
+// Büyük paket gönderme
+bool dwiBus::sendLargePacket(uint8_t receiver, const char* data, uint16_t totalLength, unsigned long timeout) {
+    uint8_t totalPackets = (totalLength + 49) / 50;
+    uint8_t packetNum = 0;
+
+    for (uint16_t offset = 0; offset < totalLength; offset += 50) {
+        uint8_t length = (totalLength - offset > 50) ? 50 : totalLength - offset;
+
+        dwiPacket packet;  // Yapıyı oluştur
+        memset(&packet, 0, sizeof(packet));  // Yapıyı sıfırla
+
+        packet.receiver = receiver;
+        packet.sender = address;
+        packet.packetNum = packetNum++;
+        packet.totalPackets = totalPackets;
+        packet.length = length;
+
+        memcpy(packet.data, data + offset, length);
+
+        packet.crc = calculateCRC((uint8_t*)&packet, sizeof(packet) - sizeof(packet.crc) - sizeof(packet.end));
+
+Serial.print("Gönderilen CRC: ");
+Serial.println(packet.crc, HEX);
+        if (!waitForBus(timeout)) return false;
+
+        serial.write((uint8_t*)&packet, sizeof(packet));
+        serial.flush();
+        digitalWrite(busPin, LOW);
     }
-
-    if (!waitForBus(timeout)) {
-        return false;
-    }
-
-    dwiPacket packet;
-    packet.receiver = receiver;
-    packet.sender = address;
-    packet.length = length;
-    memset(packet.data, 0, sizeof(packet.data));
-    memcpy(packet.data, data, length);
-    packet.crc = calculateCRC((uint8_t*)&packet, sizeof(packet) - 3);  // CRC hesapla
-
-    serial.write((uint8_t*)&packet, sizeof(packet));
-    serial.flush();
-    digitalWrite(busPin, LOW);
     return true;
 }
 
 
-// Gelen paketleri kontrol eder ve callback'i çağırır
+// Gelen paketleri alır
 void dwiBus::handleReceive() {
+    static char buffer[1024];  // Büyük veri için geçici buffer
+    static uint8_t receivedPackets = 0;
+    static uint8_t expectedPackets = 0;
+    static uint16_t receivedLength = 0;
+
     if (serial.available() >= sizeof(dwiPacket)) {
         dwiPacket packet;
         serial.readBytes((uint8_t*)&packet, sizeof(dwiPacket));
 
-        if (packet.length > 50) {
-            Serial.println("Hata: Geçersiz veri uzunluğu.");
-            return;
-        }
+        // CRC ve adres kontrolü
+        if (checkCRC(packet) && packet.receiver == address) {
+            // Gelen veriyi buffer'a ekle
+            memcpy(buffer + (packet.packetNum * 50), packet.data, packet.length);
+            receivedLength += packet.length;
+            receivedPackets++;
 
-        if (packet.receiver == address && checkCRC(packet)) {
-            if (packetCallback != nullptr) {
-                packetCallback(packet);
+            // İlk paket geldiğinde toplam paket sayısını ayarla
+            if (packet.packetNum == 0) expectedPackets = packet.totalPackets;
+
+            // Tüm paketler geldiyse
+            if (receivedPackets == expectedPackets) {
+                Serial.print("Tam veri alındı: ");
+                Serial.write(buffer, receivedLength);  // Tam veriyi yazdır
+
+                // Tüm değişkenleri sıfırla
+                receivedLength = 0;
+                receivedPackets = 0;
+                expectedPackets = 0;
             }
         } else {
             Serial.println("Hata: CRC hatası veya adres uyuşmazlığı.");

@@ -143,13 +143,15 @@ dwiBus/
 ## CRC Error Control
 
 The library uses **CRC-8** to ensure data integrity. Each packet contains:
-- **2 Bytes Sync**: Start of the packet.
-- **2 Bytes Receiver Address**: The intended recipient.
-- **2 Bytes Sender Address**: The sender's address.
-- **2 Bytes Length**: Length of the data.
-- **Data (up to 50 bytes)**: The actual message content.
-- **1 Byte CRC**: Error checking byte.
-- **2 Bytes End Marker**: Packet end marker (`\r\n`).
+2 Bytes Sync: Marks the start of the packet.
+1 Byte Receiver Address: Identifies the intended recipient.
+1 Byte Sender Address: Specifies the sender's address.
+1 Byte Packet Number: Current packet number in a sequence.
+1 Byte Total Packets: Total number of packets in the message.
+1 Byte Length: Length of the data in the current packet.
+Data (up to 50 bytes): Contains the actual message content.
+1 Byte CRC: Ensures error checking.
+2 Bytes End Marker: Packet end indicator (\r\n).
 
 ---
 

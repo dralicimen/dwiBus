@@ -78,8 +78,6 @@ bool dwiBus::sendLargePacket(uint8_t receiver, const char* data, uint16_t totalL
 
         packet.crc = calculateCRC((uint8_t*)&packet, sizeof(packet) - sizeof(packet.crc) - sizeof(packet.end));
 
-Serial.print("Gönderilen CRC: ");
-Serial.println(packet.crc, HEX);
         if (!waitForBus(timeout)) return false;
 
         serial.write((uint8_t*)&packet, sizeof(packet));

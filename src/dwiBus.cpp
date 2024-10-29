@@ -15,12 +15,11 @@ void dwiBus::begin(long baudRate) {
 }
 
 // Callback fonksiyonunu kaydeder
-void dwiBus::onPacketReceived(void (*callback)(const dwiPacket&)) {
+void dwiBus::onPacketReceived(void (*callback)(const Response&)) {
     packetCallback = callback;
 }
 
-
-// CRC kontrolü
+// CRC hesaplama
 uint8_t dwiBus::calculateCRC(const uint8_t* data, size_t length) {
     uint8_t crc = 0x00;
     for (size_t i = 0; i < length; ++i) {
@@ -31,13 +30,12 @@ uint8_t dwiBus::calculateCRC(const uint8_t* data, size_t length) {
     }
     return crc;
 }
+
+// CRC kontrolü
 bool dwiBus::checkCRC(const dwiPacket& packet) {
-    size_t lengthToCheck = sizeof(packet) - sizeof(packet.crc) - sizeof(packet.end);
-    uint8_t calculatedCRC = calculateCRC((uint8_t*)&packet, lengthToCheck);
+    uint8_t calculatedCRC = calculateCRC((uint8_t*)&packet, sizeof(packet) - sizeof(packet.crc) - sizeof(packet.end));
     return calculatedCRC == packet.crc;
 }
-
-
 
 // Hat bekleme
 bool dwiBus::waitForBus(unsigned long timeout) {
@@ -52,28 +50,23 @@ bool dwiBus::waitForBus(unsigned long timeout) {
     return true;
 }
 
-// Küçük paket gönderme
-bool dwiBus::sendPacket(uint8_t receiver, const char* data, uint8_t length, unsigned long timeout) {
-    return sendLargePacket(receiver, data, length, timeout);
-}
-
-// Büyük paket gönderme
-bool dwiBus::sendLargePacket(uint8_t receiver, const char* data, uint16_t totalLength, unsigned long timeout) {
+// Paket gönderme
+bool dwiBus::sendPacket(uint8_t receiver, const char* data, unsigned long timeout) {
+    uint16_t totalLength = strlen(data);
     uint8_t totalPackets = (totalLength + 49) / 50;
     uint8_t packetNum = 0;
 
     for (uint16_t offset = 0; offset < totalLength; offset += 50) {
         uint8_t length = (totalLength - offset > 50) ? 50 : totalLength - offset;
 
-        dwiPacket packet;  // Yapıyı oluştur
-        memset(&packet, 0, sizeof(packet));  // Yapıyı sıfırla
+        dwiPacket packet;
+        memset(&packet, 0, sizeof(packet));
 
         packet.receiver = receiver;
         packet.sender = address;
         packet.packetNum = packetNum++;
         packet.totalPackets = totalPackets;
         packet.length = length;
-
         memcpy(packet.data, data + offset, length);
 
         packet.crc = calculateCRC((uint8_t*)&packet, sizeof(packet) - sizeof(packet.crc) - sizeof(packet.end));
@@ -87,10 +80,9 @@ bool dwiBus::sendLargePacket(uint8_t receiver, const char* data, uint16_t totalL
     return true;
 }
 
-
-// Gelen paketleri alır
+// Gelen paketleri alır ve yanıt oluşturur
 void dwiBus::handleReceive() {
-    static char buffer[1024];  // Büyük veri için geçici buffer
+    static char buffer[1024];
     static uint8_t receivedPackets = 0;
     static uint8_t expectedPackets = 0;
     static uint16_t receivedLength = 0;
@@ -99,29 +91,27 @@ void dwiBus::handleReceive() {
         dwiPacket packet;
         serial.readBytes((uint8_t*)&packet, sizeof(dwiPacket));
 
-        // CRC ve adres kontrolü
         if (checkCRC(packet) && packet.receiver == address) {
-            // Gelen veriyi buffer'a ekle
             memcpy(buffer + (packet.packetNum * 50), packet.data, packet.length);
             receivedLength += packet.length;
             receivedPackets++;
 
-            // İlk paket geldiğinde toplam paket sayısını ayarla
             if (packet.packetNum == 0) expectedPackets = packet.totalPackets;
 
-            // Tüm paketler geldiyse
             if (receivedPackets == expectedPackets) {
-                Serial.print("Tam veri alındı: ");
-                Serial.write(buffer, receivedLength);  // Tam veriyi yazdır
+                Response response(receivedLength);
+                memcpy(response.completeData, buffer, receivedLength);
+                response.sender = packet.sender;
+                response.receiveTime = millis();
 
-                // Tüm değişkenleri sıfırla
+                if (packetCallback) packetCallback(response);
+
                 receivedLength = 0;
                 receivedPackets = 0;
                 expectedPackets = 0;
             }
         } else {
-            Serial.println("Hata: CRC hatası veya adres uyuşmazlığı.");
+            Serial.println("CRC hatası veya adres uyuşmazlığı.");
         }
     }
 }
-

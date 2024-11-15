@@ -21,7 +21,7 @@ bibliography: references.bib
 
 ### Summary
 
-DwiBus: multi-device UART on shared bus, for Arduinos and ESP32s. It implements CRC-based error checking, which will ensure you always get the data as expected for SoftwareSerial and HardwareSerial interfaces. DwiBus makes multi-device interactions easier by enabling users to control shared communication lines effectively (Masoodi et al., 2025).
+DwiBus: multi-device UART on shared bus, for Arduinos and ESP32s. It implements CRC-based error checking, which will ensure you always get the data as expected for SoftwareSerial and HardwareSerial interfaces. DwiBus makes multi-device interactions easier by enabling users to control shared communication lines effectively.
 
 The library exposes a flexible API to define behaviors specific to each device, provide custom addresses and process packets seamlessly. This versatility enables it to be used for IoT projects, embedded systems, or anywhere you need reliable UART communication between devices. The dwiBus modular design allows you to extend it and with even greater flexibility, easily add it to existing projects; it is scalable and simple.
 

@@ -13,7 +13,7 @@ authors:
     affiliation: 1
     corresponding: true
 affiliations:
-  - name: İstanbul Gelişim Üniversitesi, İktisadi İdari ve Sosyal Bilimler Fakültesi, Yönetim Bilişim Sistemleri Bölümü
+  - name: Yönetim Bilişim Sistemleri Bölümü, İstanbul Gelişim Üniversitesi, İstanbul, Türkiye
     index: 1
 date: 10 November 2024
 bibliography: references.bib
@@ -137,3 +137,6 @@ void setup() {
 #### Advanced Usage: Modular Integration
 
 The library’s modular API allows developers to incorporate it into complex systems with minimal changes to their existing codebase. The clear separation of initialization, messaging, and error-checking logic makes the library easy to integrate into new and legacy systems alike.
+
+
+#### References

@@ -139,4 +139,4 @@ void setup() {
 The library’s modular API allows developers to incorporate it into complex systems with minimal changes to their existing codebase. The clear separation of initialization, messaging, and error-checking logic makes the library easy to integrate into new and legacy systems alike.
 
 
-# Summary
+# References

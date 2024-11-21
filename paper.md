@@ -22,8 +22,6 @@ bibliography: references.bib
 
 The **dwiBus** library provides a modern, reliable communication protocol for multi-device UART communication on shared buses, catering specifically to Arduino and ESP32 platforms. Designed to overcome the limitations of traditional protocols like Modbus RTU, it integrates CRC-based error checking, scalability for up to 255 devices, and a flexible API for seamless integration in IoT and embedded systems.
 
----
-
 # Statement of Need
 
 As industrial automation systems become more IoT-enabled, effective low-level communication protocols are essential. Classical systems like Modbus RTU are widely adopted but exhibit constraints that hinder their suitability for modern IoT applications. The **dwiBus** library addresses these challenges, offering enhanced reliability, scalability, and flexibility.
@@ -49,8 +47,6 @@ The **dwiBus** library is a modern alternative designed to mitigate these issues
 - **Scalability:** Supports up to 255 devices with unique addressing.  
 - **Broadcast Messaging:** Enables efficient communication across distributed networks.  
 - **Flexibility:** Easily integrates with Arduino and ESP32 platforms, supporting both HardwareSerial and SoftwareSerial interfaces.
-
----
 
 # Usage
 
@@ -122,7 +118,5 @@ void setup() {
 # Advanced Usage: Modular Integration
 
 The library’s modular API allows developers to incorporate it into complex systems with minimal changes to their existing codebase. The clear separation of initialization, messaging, and error-checking logic makes the library easy to integrate into new and legacy systems alike.
-
----
 
 # References
